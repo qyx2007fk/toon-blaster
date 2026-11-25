@@ -323,15 +323,32 @@ function updateHUD(dt,t){
 const PANELS=['pMenu','pLevels','pSkins','pHelp','pPause','pPerk','pOver','pWin'];
 function showPanel(id){ for(const p of PANELS) $(p).classList.toggle('show',p===id); }
 function refreshMenu(){ document.querySelectorAll('.cTotal').forEach(e=>e.textContent=save.coins); $('bestTxt').textContent=save.best?`最高分 ${save.best}`:''; }
+let lastUnlock=-1e9, lockRetry=0, lockTimer=null;
+function lockFail(){
+  if(state!=='locking') return;
+  if(lockRetry<4){ lockRetry++; clearTimeout(lockTimer); lockTimer=setTimeout(tryLock,350); return; }
+  state='paused'; $('lockTip').style.display='none'; $('pauseHint').textContent='鼠标锁定失败，请再点一次屏幕'; showPanel('pPause');
+}
+function tryLock(){
+  if(state!=='locking') return;
+  try{ const r=renderer.domElement.requestPointerLock(); if(r&&r.catch) r.catch(lockFail); }catch(e){ lockFail(); }
+}
 function lockAndPlay(){
-  initAudio(); showPanel(null); $('hud').style.display='block'; state='locking';
-  try{ const r=renderer.domElement.requestPointerLock(); if(r&&r.catch) r.catch(()=>{ state='paused'; showPanel('pPause'); }); }catch(e){ state='paused'; showPanel('pPause'); }
+  initAudio(); showPanel(null); $('hud').style.display='block'; state='locking'; lockRetry=0;
+  const wait=Math.max(0,1250-(performance.now()-lastUnlock));
+  clearTimeout(lockTimer);
+  if(wait>0){ $('lockTip').style.display='block'; lockTimer=setTimeout(tryLock,wait); } else tryLock();
 }
 document.addEventListener('pointerlockchange',()=>{
-  if(document.pointerLockElement===renderer.domElement){ if(state==='locking'||state==='paused'){ state='play'; showPanel(null); } }
-  else if(state==='play'||state==='locking'){ state='paused'; mouseDown=false; for(const k in keys) keys[k]=false; showPanel('pPause'); }
+  if(document.pointerLockElement===renderer.domElement){ clearTimeout(lockTimer); $('lockTip').style.display='none';
+    if(state==='locking'||state==='paused'){ state='play'; showPanel(null); clock.getDelta(); } }
+  else { lastUnlock=performance.now();
+    if(state==='play'){ state='paused'; mouseDown=false; for(const k in keys) keys[k]=false; $('pauseHint').textContent='点击任意位置继续'; showPanel('pPause'); } }
 });
-document.addEventListener('pointerlockerror',()=>{ if(state==='locking'){ state='paused'; showPanel('pPause'); } });
+document.addEventListener('pointerlockerror',lockFail);
+renderer.domElement.addEventListener('click',()=>{ if(state==='locking'){ lockRetry=0; tryLock(); } });
+$('lockTip').style.pointerEvents='none';
+$('pPause').addEventListener('click',e=>{ if(e.target.closest('#bQuit')) return; lockAndPlay(); });
 const LEVEL_ICONS=['🌳','🌵','❄️','🍭','🌋'];
 function renderLevels(){
   const box=$('levelCards'); box.innerHTML='';
@@ -369,7 +386,6 @@ $('bLevels').onclick=()=>{ sfx('click'); renderLevels(); showPanel('pLevels'); }
 $('bSkins').onclick=()=>{ sfx('click'); renderSkins(); showPanel('pSkins'); };
 $('bHelp').onclick=()=>{ sfx('click'); showPanel('pHelp'); };
 document.querySelectorAll('[data-back]').forEach(b=>b.onclick=()=>{ sfx('click'); refreshMenu(); showPanel('pMenu'); });
-$('bResume').onclick=()=>lockAndPlay();
 $('bQuit').onclick=()=>{ save.best=Math.max(save.best,score); persist(); toMenu(); };
 $('bRetry').onclick=()=>{ startRun(startChoice); lockAndPlay(); };
 $('bOverMenu').onclick=()=>toMenu();
@@ -400,9 +416,22 @@ addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.upd
 
 // ================= 主循环 =================
 const clock=new THREE.Clock(); let menuT=0;
+let perfAcc=0, perfN=0, quality=2;
+function checkPerf(real){
+  perfAcc+=real; perfN++;
+  if(perfAcc<3) return;
+  const fps=perfN/perfAcc; perfAcc=0; perfN=0;
+  if(fps<40 && quality>0){
+    quality--;
+    if(quality===1){ renderer.setPixelRatio(1); renderer.setSize(innerWidth,innerHeight); sun.shadow.mapSize.set(1024,1024); sun.shadow.map?.dispose(); sun.shadow.map=null; }
+    else { sun.castShadow=false; if(world.weather) world.weather.pts.visible=false; }
+    tip('检测到卡顿，已自动降低画质',2);
+  }
+}
 function loop(){
   requestAnimationFrame(loop);
-  const real=Math.min(clock.getDelta(),.05); let dt=real;
+  const raw=clock.getDelta(); const real=Math.min(raw,.05); let dt=real;
+  if(state==='play' && raw<.5) checkPerf(raw);
   if(hitstop>0){ hitstop-=real; dt*=.08; }
   if(slowmo>0){ slowmo-=real; dt*=.3; }
   if(state==='play'){

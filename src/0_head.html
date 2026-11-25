@@ -103,7 +103,7 @@
   <div id="tr"><canvas id="radar" width="150" height="150"></canvas><br><div class="box sm" id="leftBox">剩余敌人 <span id="left">0</span></div></div>
   <div id="bl" class="box"><div id="pus"></div>生命 <span id="hp">100</span><span class="sm"> / <span id="hpmax">100</span></span><div id="hpBar"><div id="hpTrail"></div><div id="hpFill"></div><div id="shFill"></div></div><div id="dashBar"><div id="dashFill"></div></div><div class="sm">冲刺 Q / 右键</div></div>
   <div id="br"><div id="wname" class="box sm"></div><br><div class="box" id="ammoBox"><span id="clip">12</span><span class="sm"> / <span id="reserve">∞</span></span><div id="reload">换弹中...</div></div><div id="slots"></div></div>
-  <div id="msg"></div><div id="sub2"></div><div id="tip"></div>
+  <div id="msg"></div><div id="sub2"></div><div id="tip"></div><div id="lockTip" style="position:absolute;left:50%;top:60%;transform:translateX(-50%);font-size:26px;font-weight:bold;display:none">正在恢复…</div>
 </div>
 
 <div id="pMenu" class="panel show">
@@ -129,7 +129,7 @@
   Boss 的冲击波和弹幕贴地飞行，跳起来就能躲开。
   </div>
   <button class="btn gray small" data-back>返回</button></div>
-<div id="pPause" class="panel"><h2>暂停</h2><button class="btn" id="bResume">继续游戏</button><button class="btn gray" id="bQuit">返回主菜单</button></div>
+<div id="pPause" class="panel"><h2>暂停</h2><div class="sub" id="pauseHint">点击任意位置继续</div><button class="btn" id="bResume">继续游戏</button><button class="btn gray" id="bQuit">返回主菜单</button></div>
 <div id="pPerk" class="panel"><h2 id="perkTitle">关卡完成！</h2><div class="sub">选择一个天赋</div><div class="cards" id="perkCards"></div></div>
 <div id="pOver" class="panel"><h2>游戏结束</h2><div class="sub" id="overTxt"></div><button class="btn" id="bRetry">再来一局</button><button class="btn gray" id="bOverMenu">返回主菜单</button></div>
 <div id="pWin" class="panel"><h2>恭喜通关！</h2><div class="sub" id="winTxt"></div><button class="btn" id="bEndless">继续无尽模式</button><button class="btn gray" id="bWinMenu">返回主菜单</button></div>
