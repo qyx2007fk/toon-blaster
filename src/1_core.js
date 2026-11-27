@@ -15,7 +15,7 @@ let TOUCH = matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints
 if(TOUCH) document.body.classList.add('touch');
 addEventListener('pointerdown',e=>{
   if(e.pointerType==='touch' && !TOUCH){ TOUCH=true; document.body.classList.add('touch'); if(document.pointerLockElement) document.exitPointerLock?.(); }
-  else if(e.pointerType==='mouse' && TOUCH && matchMedia('(any-pointer: fine)').matches){ TOUCH=false; document.body.classList.remove('touch'); if(state==='play') lockAndPlay(); }
+  else if(e.pointerType==='mouse' && TOUCH && renderer.domElement.requestPointerLock && matchMedia('(any-pointer: fine)').matches){ TOUCH=false; document.body.classList.remove('touch'); if(state==='play') lockAndPlay(); }
 },{capture:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio, TOUCH?1.5:2));
 renderer.setSize(innerWidth, innerHeight);

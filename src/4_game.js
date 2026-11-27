@@ -329,7 +329,9 @@ let lastUnlock=-1e9, lockRetry=0, lockTimer=null;
 function lockFail(){
   if(state!=='locking') return;
   if(lockRetry<4){ lockRetry++; clearTimeout(lockTimer); lockTimer=setTimeout(tryLock,350); return; }
-  state='paused'; $('lockTip').style.display='none'; $('pauseHint').textContent='鼠标锁定失败，请再点一次屏幕'; showPanel('pPause');
+  $('lockTip').style.display='none';
+  if(navigator.maxTouchPoints>0){ TOUCH=true; document.body.classList.add('touch'); lockAndPlay(); return; }
+  state='paused'; $('pauseHint').textContent='鼠标锁定失败，请再点一次屏幕'; showPanel('pPause');
 }
 function tryLock(){
   if(state!=='locking') return;
