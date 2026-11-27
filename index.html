@@ -1351,6 +1351,7 @@ function giveWeapon(id,announce=true){
   if(announce){ switchWeapon(i); showMsg('获得 '+w.name+'！',1.6,'按 '+(i+1)+' 键切换'); sfx('weapon'); }
 }
 
+function unlockPointer(){ try{ if(document.pointerLockElement && document.exitPointerLock) document.exitPointerLock(); }catch(e){} }
 let state='menu', score=0, runCoins=0, levelIdx=0, waveIdx=-1, queue=[], spawnT=0, breakT=0, inBreak=true, bossSpawned=false, levelDone=false;
 let combo=0, comboT=0, startChoice=0, gameT=0, bob=0, vigOp=0, flashOp=0, coinFrac=0;
 const loopN=()=>Math.floor(levelIdx/LEVELS.length);
@@ -1429,7 +1430,7 @@ function levelComplete(){
   if(state!=='play') return;
   const bonus=20+(levelIdx%LEVELS.length)*10+loopN()*20; save.coins+=bonus; runCoins+=bonus;
   save.maxLevel=Math.max(save.maxLevel,Math.min(LEVELS.length-1,levelIdx+1)); save.best=Math.max(save.best,score); persist();
-  state='perk'; mouseDown=false; document.exitPointerLock();
+  state='perk'; mouseDown=false; unlockPointer();
   $('perkTitle').textContent=`${world.level.name} 完成！ +${bonus} 金币`;
   renderPerks(); showPanel('pPerk');
 }
@@ -1451,7 +1452,7 @@ function gameOver(){
   player.dead=true; player.deathT=1.4; slowmo=.8; mouseDown=false; sfx('lose');
 }
 function finishGameOver(){
-  state='over'; document.exitPointerLock();
+  state='over'; unlockPointer();
   save.best=Math.max(save.best,score); persist();
   const L=world.level; $('overTxt').innerHTML=`倒在了：${L.name} ${bossSpawned?'Boss 战':'第 '+Math.max(1,waveIdx+1)+' 波'}<br>得分 ${score}　本局金币 ${runCoins}　最高分 ${save.best}`;
   showPanel('pOver');
@@ -1750,7 +1751,7 @@ function renderSkins(){
     box.appendChild(c); }
 }
 function toMenu(){
-  state='menu'; if(document.pointerLockElement) document.exitPointerLock();
+  state='menu'; unlockPointer();
   clearEnemies(); clearFx(); clearPickups(); resetPlayer(); player.height=1.7;
   buildLevel(rint(0,save.maxLevel)); vmRoot.visible=false; $('hud').style.display='none';
   const types=['jelly','runner','tank','spitter','bomber','bat','splitter'];
