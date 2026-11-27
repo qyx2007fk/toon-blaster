@@ -180,13 +180,14 @@ function updatePlayer(dt,t){
   _w.set(0,0,0);
   if(keys.KeyW||keys.ArrowUp) _w.add(_f); if(keys.KeyS||keys.ArrowDown) _w.sub(_f);
   if(keys.KeyD||keys.ArrowRight) _w.add(_r); if(keys.KeyA||keys.ArrowLeft) _w.sub(_r);
-  P.moving=_w.lengthSq()>0; if(P.moving) _w.normalize();
-  const sprint=keys.ShiftLeft||keys.ShiftRight;
+  if(tm.x||tm.y){ _w.addScaledVector(_r,tm.x).addScaledVector(_f,-tm.y); }
+  const wl=Math.min(1,_w.length()); P.moving=wl>.05; if(P.moving) _w.normalize().multiplyScalar(wl); else _w.set(0,0,0);
+  const sprint=keys.ShiftLeft||keys.ShiftRight||Math.hypot(tm.x,tm.y)>.92;
   const spd=5.5*(sprint?1.55:1)*P.speedMul*(pu.haste>0?1.3:1)*(P.boost>0?1.6:1);
   if(P.dashT>0) P.dashT-=dt;
   else { const acc=P.onIce?(P.onGround?1.4:1):(P.onGround?14:4);
     P.vel.x+=(_w.x*spd-P.vel.x)*Math.min(1,acc*dt); P.vel.z+=(_w.z*spd-P.vel.z)*Math.min(1,acc*dt); }
-  if(dashQ){ dashQ=false; if(P.dashCd<=0){ const d=P.moving?_w.clone():_f.clone(); P.vel.x=d.x*24; P.vel.z=d.z*24; P.dashT=.18; P.inv=Math.max(P.inv,.3); P.dashCd=P.dashCdMax; sfx('dash');
+  if(dashQ){ dashQ=false; if(P.dashCd<=0){ const d=P.moving?_w.clone().normalize():_f.clone(); P.vel.x=d.x*24; P.vel.z=d.z*24; P.dashT=.18; P.inv=Math.max(P.inv,.3); P.dashCd=P.dashCdMax; sfx('dash');
       for(let k=0;k<8;k++) burst(P.pos.clone().add(new THREE.Vector3(rng(-.5,.5),rng(.3,1.5),rng(-.5,.5))),0xffffff,1,2,.8,0); } }
   if(jumpQ){ jumpQ=false;
     if(P.onGround){ P.vel.y=8; P.onGround=false; P.jumpsLeft=P.maxJumps-1; sfx('jump'); }
@@ -333,7 +334,16 @@ function tryLock(){
   if(state!=='locking') return;
   try{ const r=renderer.domElement.requestPointerLock(); if(r&&r.catch) r.catch(lockFail); }catch(e){ lockFail(); }
 }
+function pauseGame(hint='点击任意位置继续'){
+  if(state!=='play') return;
+  state='paused'; mouseDown=false; resetTouch(); for(const k in keys) keys[k]=false; pausedAt=performance.now();
+  $('pauseHint').textContent=hint; showPanel('pPause');
+}
+let pausedAt=0;
 function lockAndPlay(){
+  if(TOUCH){ initAudio(); showPanel(null); $('hud').style.display='block'; resetTouch(); state='play'; clock.getDelta();
+    try{ const fe=document.documentElement; if(!document.fullscreenElement && fe.requestFullscreen) fe.requestFullscreen({navigationUI:'hide'}).then(()=>screen.orientation?.lock?.('landscape').catch(()=>{})).catch(()=>{}); }catch(e){}
+    return; }
   initAudio(); showPanel(null); $('hud').style.display='block'; state='locking'; lockRetry=0;
   const wait=Math.max(0,1250-(performance.now()-lastUnlock));
   clearTimeout(lockTimer);
@@ -348,7 +358,43 @@ document.addEventListener('pointerlockchange',()=>{
 document.addEventListener('pointerlockerror',lockFail);
 renderer.domElement.addEventListener('click',()=>{ if(state==='locking'){ lockRetry=0; tryLock(); } });
 $('lockTip').style.pointerEvents='none';
-$('pPause').addEventListener('click',e=>{ if(e.target.closest('#bQuit')) return; lockAndPlay(); });
+$('pPause').addEventListener('click',e=>{ if(e.target.closest('#bQuit')) return; if(performance.now()-pausedAt<450) return; lockAndPlay(); });
+document.addEventListener('visibilitychange',()=>{ if(document.hidden && TOUCH) pauseGame(); });
+
+// ================= 触屏操作 =================
+const tm={x:0,y:0}; let joyId=null, joyO={x:0,y:0}; const lookIds=new Map();
+const LOOK_SENS=.0055;
+function resetTouch(){ tm.x=tm.y=0; joyId=null; lookIds.clear(); $('joyBase').style.display='none'; mouseDown=false; document.querySelectorAll('.tbtn.on').forEach(b=>b.classList.remove('on')); }
+function lookMove(e){ const l=lookIds.get(e.pointerId); if(!l||state!=='play'||player.dead) return;
+  player.yaw-=(e.clientX-l.x)*LOOK_SENS; player.pitch=clamp(player.pitch-(e.clientY-l.y)*LOOK_SENS,-1.4,1.4);
+  player.swayX=clamp(player.swayX+(e.clientX-l.x)*.0006,-.05,.05); l.x=e.clientX; l.y=e.clientY; }
+function lookStart(e){ lookIds.set(e.pointerId,{x:e.clientX,y:e.clientY}); try{ e.target.setPointerCapture(e.pointerId); }catch(_){} }
+function lookEnd(e){ lookIds.delete(e.pointerId); }
+const tMove=$('tMove'), tLook=$('tLook');
+tMove.addEventListener('pointerdown',e=>{ e.preventDefault(); if(joyId!==null) return; joyId=e.pointerId; joyO={x:e.clientX,y:e.clientY};
+  const jb=$('joyBase'); jb.style.left=e.clientX+'px'; jb.style.top=e.clientY+'px'; jb.style.display='block'; $('joyKnob').style.transform='translate(0,0)';
+  try{ tMove.setPointerCapture(e.pointerId); }catch(_){} });
+tMove.addEventListener('pointermove',e=>{ if(e.pointerId!==joyId) return; let dx=e.clientX-joyO.x, dy=e.clientY-joyO.y; const d=Math.hypot(dx,dy), R=55;
+  if(d>R){ dx*=R/d; dy*=R/d; } tm.x=dx/R; tm.y=dy/R; $('joyKnob').style.transform=`translate(${dx}px,${dy}px)`; });
+const joyEnd=e=>{ if(e.pointerId!==joyId) return; joyId=null; tm.x=tm.y=0; $('joyBase').style.display='none'; };
+tMove.addEventListener('pointerup',joyEnd); tMove.addEventListener('pointercancel',joyEnd);
+tLook.addEventListener('pointerdown',e=>{ e.preventDefault(); lookStart(e); });
+tLook.addEventListener('pointermove',lookMove); tLook.addEventListener('pointerup',lookEnd); tLook.addEventListener('pointercancel',lookEnd);
+function tbtn(id,down,up,look){
+  const b=$(id);
+  b.addEventListener('pointerdown',e=>{ e.preventDefault(); e.stopPropagation(); if(state!=='play') return; b.classList.add('on'); if(look) lookStart(e); else { try{ b.setPointerCapture(e.pointerId); }catch(_){} } initAudio(); down(); });
+  const end=e=>{ b.classList.remove('on'); if(look) lookEnd(e); if(up) up(); };
+  b.addEventListener('pointerup',end); b.addEventListener('pointercancel',end);
+  if(look) b.addEventListener('pointermove',lookMove);
+}
+tbtn('tFire',()=>{ mouseDown=true; },()=>{ mouseDown=false; },true);
+tbtn('tJump',()=>{ jumpQ=true; });
+tbtn('tDash',()=>{ dashQ=true; });
+tbtn('tReload',()=>startReload());
+tbtn('tSwap',()=>cycleWeapon(1));
+tbtn('tPause',()=>pauseGame());
+document.addEventListener('touchmove',e=>{ if(state==='play') e.preventDefault(); },{passive:false});
+document.addEventListener('gesturestart',e=>e.preventDefault());
 const LEVEL_ICONS=['🌳','🌵','❄️','🍭','🌋'];
 function renderLevels(){
   const box=$('levelCards'); box.innerHTML='';
@@ -403,7 +449,7 @@ document.addEventListener('keydown',e=>{
 });
 document.addEventListener('keyup',e=>keys[e.code]=false);
 addEventListener('blur',()=>{ for(const k in keys) keys[k]=false; mouseDown=false; });
-document.addEventListener('mousedown',e=>{ if(state!=='play'||player.dead) return; if(e.button===0) mouseDown=true; if(e.button===2) dashQ=true; });
+document.addEventListener('mousedown',e=>{ if(TOUCH||state!=='play'||player.dead) return; if(e.button===0) mouseDown=true; if(e.button===2) dashQ=true; });
 document.addEventListener('mouseup',e=>{ if(e.button===0) mouseDown=false; });
 document.addEventListener('contextmenu',e=>e.preventDefault());
 let wheelT=0; document.addEventListener('wheel',e=>{ if(state!=='play') return; const now=performance.now(); if(now-wheelT<120) return; wheelT=now; cycleWeapon(e.deltaY>0?1:-1); },{passive:true});
@@ -416,7 +462,7 @@ addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.upd
 
 // ================= 主循环 =================
 const clock=new THREE.Clock(); let menuT=0;
-let perfAcc=0, perfN=0, quality=2;
+let perfAcc=0, perfN=0, quality=TOUCH?1:2;
 function checkPerf(real){
   perfAcc+=real; perfN++;
   if(perfAcc<3) return;
@@ -441,6 +487,7 @@ function loop(){
     menuT+=real; camera.position.set(Math.sin(menuT*.1)*24,13,Math.cos(menuT*.1)*24); camera.lookAt(0,1.5,0);
     player.pos.copy(camera.position); updateEnemies(real,menuT); updateWorld(real,menuT); updateFx(real);
   }
+  const tv=(TOUCH&&state==='play')?'block':'none'; if($('touchUI').style.display!==tv) $('touchUI').style.display=tv;
   renderer.render(scene,camera);
 }
 toMenu();

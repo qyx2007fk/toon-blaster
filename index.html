@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <title>Toon Blaster 卡通大乱斗</title>
 <link rel="icon" href="data:,">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <style>
   html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:"Comic Sans MS","Arial Rounded MT Bold","PingFang SC","Microsoft YaHei",sans-serif;user-select:none}
   canvas{display:block}
@@ -61,8 +61,41 @@
   #msg{position:absolute;left:50%;top:24%;transform:translate(-50%,-50%) scale(1);font-size:64px;font-weight:bold;color:#ffe14d;opacity:0;white-space:nowrap;-webkit-text-stroke:2px #000;transition:opacity .3s,transform .3s}
   #sub2{position:absolute;left:50%;top:33%;transform:translateX(-50%);font-size:26px;font-weight:bold;opacity:0;white-space:nowrap;transition:opacity .3s}
   #tip{position:absolute;left:50%;bottom:150px;transform:translateX(-50%);font-size:22px;font-weight:bold;color:#fff;opacity:0;white-space:nowrap;transition:opacity .3s}
+  body.touch{touch-action:none;-webkit-touch-callout:none;-webkit-user-select:none}
+  #hud{z-index:3}
+  #touchUI{position:fixed;inset:0;display:none;z-index:2;touch-action:none}
+  #tMove{position:absolute;left:0;top:0;bottom:0;width:45%}
+  #tLook{position:absolute;right:0;top:0;bottom:0;width:55%}
+  #joyBase{position:absolute;width:130px;height:130px;margin:-65px 0 0 -65px;border-radius:50%;background:rgba(255,255,255,.18);border:4px solid rgba(0,0,0,.55);display:none;pointer-events:none}
+  #joyKnob{position:absolute;left:50%;top:50%;width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:50%;background:rgba(255,255,255,.7);border:4px solid #000}
+  .tbtn{position:absolute;width:74px;height:74px;border-radius:50%;background:rgba(255,107,181,.55);border:4px solid #000;color:#fff;font-weight:bold;font-size:17px;display:flex;align-items:center;justify-content:center;text-shadow:2px 2px 0 #000;-webkit-user-select:none;user-select:none;touch-action:none;box-sizing:border-box}
+  .tbtn.on{filter:brightness(1.5);transform:scale(.92)}
+  .tbtn.s{width:56px;height:56px;font-size:14px}
+  #tFire{right:calc(28px + env(safe-area-inset-right));bottom:84px;width:104px;height:104px;font-size:22px;background:rgba(255,70,70,.6)}
+  #tJump{right:calc(148px + env(safe-area-inset-right));bottom:26px;background:rgba(84,160,255,.6)}
+  #tDash{right:calc(146px + env(safe-area-inset-right));bottom:122px;background:rgba(29,209,161,.6)}
+  #tReload{right:calc(250px + env(safe-area-inset-right));bottom:36px;background:rgba(255,159,67,.6)}
+  #tSwap{right:calc(248px + env(safe-area-inset-right));bottom:120px;background:rgba(166,108,255,.6)}
+  #tPause{left:50%;top:auto;bottom:12px;margin-left:-28px;background:rgba(0,0,0,.45)}
+  body.touch #slots,body.touch #bl .sm:last-child{display:none}
+  body.touch #br{right:auto;left:20px;bottom:auto;top:96px;text-align:left}
+  body.touch #ammoBox{font-size:28px}
+  body.touch #bl{width:210px;padding:4px 10px;font-size:18px}
+  body.touch #tr{transform:scale(.7);transform-origin:top right}
+  body.touch #tl{font-size:18px;padding:4px 10px}
+  body.touch #msg{font-size:40px}
+  body.touch #sub2,body.touch #tip{font-size:18px}
+  body.touch #tip{bottom:40%}
+  body.touch #bossBar{width:300px}
+  body.touch .panel h1{font-size:48px}
+  body.touch .panel h2{font-size:34px}
+  body.touch .btn{font-size:22px;min-width:200px;padding:6px 24px;margin:5px}
+  body.touch .card{width:150px;padding:8px}
+  body.touch .keys{font-size:14px}
+  #rotateTip{display:none;position:fixed;left:0;right:0;top:0;z-index:20;background:#ffe14d;color:#000;text-align:center;font-weight:bold;padding:6px;font-size:15px;pointer-events:none}
+  @media (orientation:portrait){ body.touch #rotateTip{display:block} }
   #arrow{position:absolute;left:50%;top:50%;width:0;height:0;display:none}
-  .panel{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(40,20,80,.55);color:#fff;text-align:center;overflow:auto}
+  .panel{position:fixed;inset:0;z-index:10;touch-action:pan-y;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(40,20,80,.55);color:#fff;text-align:center;overflow:auto}
   .panel.show{display:flex}
   .panel h1{font-size:84px;margin:0;color:#ffe14d;-webkit-text-stroke:3px #000;transform:rotate(-4deg);text-shadow:6px 6px 0 #000}
   .panel h2{font-size:52px;margin:0 0 14px;color:#ffe14d;-webkit-text-stroke:2px #000;text-shadow:4px 4px 0 #000}
@@ -106,6 +139,13 @@
   <div id="msg"></div><div id="sub2"></div><div id="tip"></div><div id="lockTip" style="position:absolute;left:50%;top:60%;transform:translateX(-50%);font-size:26px;font-weight:bold;display:none">正在恢复…</div>
 </div>
 
+<div id="touchUI">
+  <div id="tMove"><div id="joyBase"><div id="joyKnob"></div></div></div>
+  <div id="tLook"></div>
+  <div class="tbtn" id="tFire">射击</div><div class="tbtn" id="tJump">跳</div><div class="tbtn" id="tDash">冲刺</div>
+  <div class="tbtn s" id="tReload">换弹</div><div class="tbtn s" id="tSwap">切枪</div><div class="tbtn s" id="tPause">II</div>
+</div>
+<div id="rotateTip">横屏游玩体验更好哦</div>
 <div id="pMenu" class="panel show">
   <div class="coinTag">金币 <span class="cTotal">0</span></div>
   <h1>TOON BLASTER</h1>
@@ -120,7 +160,8 @@
 <div id="pSkins" class="panel"><div class="coinTag">金币 <span class="cTotal">0</span></div><h2>皮肤商店</h2><div class="sub">金币在战斗中拾取，用来解锁皮肤</div><div class="cards" id="skinCards"></div><button class="btn gray small" data-back>返回</button></div>
 <div id="pHelp" class="panel"><h2>玩法说明</h2>
   <div class="keys">
-  <b>操作</b>：WASD 移动 · 空格 跳跃 · Shift 奔跑 · Q / 右键 冲刺（短暂无敌）<br>
+  <b>手机/平板</b>：左半屏拖动 移动 · 右半屏滑动 转视角 · 屏幕按钮 射击/跳/冲刺/换弹/切枪/暂停<br>
+  <b>电脑</b>：WASD 移动 · 空格 跳跃 · Shift 奔跑 · Q / 右键 冲刺（短暂无敌）<br>
   鼠标瞄准 · 左键 射击 · R 换弹 · 1-5 / 滚轮 切换武器 · Esc 暂停<br>
   <b>关卡</b>：5 个主题世界，每关 3 波敌人 + 1 个 Boss，过关后三选一天赋。通关后进入无尽模式。<br>
   <b>武器</b>：泡泡手枪 / 散弹喷子 / 冲锋水枪 / 火箭泡泡 / 激光炮，在关卡里找到发光的武器拾取。<br>
@@ -147,7 +188,9 @@ const easeOutBack = x => { const c1=1.70158,c3=c1+1; return 1+c3*Math.pow(x-1,3)
 
 // ================= 渲染 =================
 const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const TOUCH = matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints>0 && !matchMedia('(pointer: fine)').matches);
+if(TOUCH) document.body.classList.add('touch');
+renderer.setPixelRatio(Math.min(devicePixelRatio, TOUCH?1.5:2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -162,7 +205,7 @@ scene.add(camera);
 const hemi = new THREE.HemisphereLight(0xffffff, 0x88aa66, 0.9); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xffffff, 1.6);
 sun.position.set(30,50,20); sun.castShadow = true;
-sun.shadow.mapSize.set(2048,2048);
+sun.shadow.mapSize.set(TOUCH?1024:2048,TOUCH?1024:2048);
 Object.assign(sun.shadow.camera, {left:-60,right:60,top:60,bottom:-60,near:1,far:160});
 scene.add(sun);
 
@@ -1468,13 +1511,14 @@ function updatePlayer(dt,t){
   _w.set(0,0,0);
   if(keys.KeyW||keys.ArrowUp) _w.add(_f); if(keys.KeyS||keys.ArrowDown) _w.sub(_f);
   if(keys.KeyD||keys.ArrowRight) _w.add(_r); if(keys.KeyA||keys.ArrowLeft) _w.sub(_r);
-  P.moving=_w.lengthSq()>0; if(P.moving) _w.normalize();
-  const sprint=keys.ShiftLeft||keys.ShiftRight;
+  if(tm.x||tm.y){ _w.addScaledVector(_r,tm.x).addScaledVector(_f,-tm.y); }
+  const wl=Math.min(1,_w.length()); P.moving=wl>.05; if(P.moving) _w.normalize().multiplyScalar(wl); else _w.set(0,0,0);
+  const sprint=keys.ShiftLeft||keys.ShiftRight||Math.hypot(tm.x,tm.y)>.92;
   const spd=5.5*(sprint?1.55:1)*P.speedMul*(pu.haste>0?1.3:1)*(P.boost>0?1.6:1);
   if(P.dashT>0) P.dashT-=dt;
   else { const acc=P.onIce?(P.onGround?1.4:1):(P.onGround?14:4);
     P.vel.x+=(_w.x*spd-P.vel.x)*Math.min(1,acc*dt); P.vel.z+=(_w.z*spd-P.vel.z)*Math.min(1,acc*dt); }
-  if(dashQ){ dashQ=false; if(P.dashCd<=0){ const d=P.moving?_w.clone():_f.clone(); P.vel.x=d.x*24; P.vel.z=d.z*24; P.dashT=.18; P.inv=Math.max(P.inv,.3); P.dashCd=P.dashCdMax; sfx('dash');
+  if(dashQ){ dashQ=false; if(P.dashCd<=0){ const d=P.moving?_w.clone().normalize():_f.clone(); P.vel.x=d.x*24; P.vel.z=d.z*24; P.dashT=.18; P.inv=Math.max(P.inv,.3); P.dashCd=P.dashCdMax; sfx('dash');
       for(let k=0;k<8;k++) burst(P.pos.clone().add(new THREE.Vector3(rng(-.5,.5),rng(.3,1.5),rng(-.5,.5))),0xffffff,1,2,.8,0); } }
   if(jumpQ){ jumpQ=false;
     if(P.onGround){ P.vel.y=8; P.onGround=false; P.jumpsLeft=P.maxJumps-1; sfx('jump'); }
@@ -1621,7 +1665,16 @@ function tryLock(){
   if(state!=='locking') return;
   try{ const r=renderer.domElement.requestPointerLock(); if(r&&r.catch) r.catch(lockFail); }catch(e){ lockFail(); }
 }
+function pauseGame(hint='点击任意位置继续'){
+  if(state!=='play') return;
+  state='paused'; mouseDown=false; resetTouch(); for(const k in keys) keys[k]=false; pausedAt=performance.now();
+  $('pauseHint').textContent=hint; showPanel('pPause');
+}
+let pausedAt=0;
 function lockAndPlay(){
+  if(TOUCH){ initAudio(); showPanel(null); $('hud').style.display='block'; resetTouch(); state='play'; clock.getDelta();
+    try{ const fe=document.documentElement; if(!document.fullscreenElement && fe.requestFullscreen) fe.requestFullscreen({navigationUI:'hide'}).then(()=>screen.orientation?.lock?.('landscape').catch(()=>{})).catch(()=>{}); }catch(e){}
+    return; }
   initAudio(); showPanel(null); $('hud').style.display='block'; state='locking'; lockRetry=0;
   const wait=Math.max(0,1250-(performance.now()-lastUnlock));
   clearTimeout(lockTimer);
@@ -1636,7 +1689,43 @@ document.addEventListener('pointerlockchange',()=>{
 document.addEventListener('pointerlockerror',lockFail);
 renderer.domElement.addEventListener('click',()=>{ if(state==='locking'){ lockRetry=0; tryLock(); } });
 $('lockTip').style.pointerEvents='none';
-$('pPause').addEventListener('click',e=>{ if(e.target.closest('#bQuit')) return; lockAndPlay(); });
+$('pPause').addEventListener('click',e=>{ if(e.target.closest('#bQuit')) return; if(performance.now()-pausedAt<450) return; lockAndPlay(); });
+document.addEventListener('visibilitychange',()=>{ if(document.hidden && TOUCH) pauseGame(); });
+
+// ================= 触屏操作 =================
+const tm={x:0,y:0}; let joyId=null, joyO={x:0,y:0}; const lookIds=new Map();
+const LOOK_SENS=.0055;
+function resetTouch(){ tm.x=tm.y=0; joyId=null; lookIds.clear(); $('joyBase').style.display='none'; mouseDown=false; document.querySelectorAll('.tbtn.on').forEach(b=>b.classList.remove('on')); }
+function lookMove(e){ const l=lookIds.get(e.pointerId); if(!l||state!=='play'||player.dead) return;
+  player.yaw-=(e.clientX-l.x)*LOOK_SENS; player.pitch=clamp(player.pitch-(e.clientY-l.y)*LOOK_SENS,-1.4,1.4);
+  player.swayX=clamp(player.swayX+(e.clientX-l.x)*.0006,-.05,.05); l.x=e.clientX; l.y=e.clientY; }
+function lookStart(e){ lookIds.set(e.pointerId,{x:e.clientX,y:e.clientY}); try{ e.target.setPointerCapture(e.pointerId); }catch(_){} }
+function lookEnd(e){ lookIds.delete(e.pointerId); }
+const tMove=$('tMove'), tLook=$('tLook');
+tMove.addEventListener('pointerdown',e=>{ e.preventDefault(); if(joyId!==null) return; joyId=e.pointerId; joyO={x:e.clientX,y:e.clientY};
+  const jb=$('joyBase'); jb.style.left=e.clientX+'px'; jb.style.top=e.clientY+'px'; jb.style.display='block'; $('joyKnob').style.transform='translate(0,0)';
+  try{ tMove.setPointerCapture(e.pointerId); }catch(_){} });
+tMove.addEventListener('pointermove',e=>{ if(e.pointerId!==joyId) return; let dx=e.clientX-joyO.x, dy=e.clientY-joyO.y; const d=Math.hypot(dx,dy), R=55;
+  if(d>R){ dx*=R/d; dy*=R/d; } tm.x=dx/R; tm.y=dy/R; $('joyKnob').style.transform=`translate(${dx}px,${dy}px)`; });
+const joyEnd=e=>{ if(e.pointerId!==joyId) return; joyId=null; tm.x=tm.y=0; $('joyBase').style.display='none'; };
+tMove.addEventListener('pointerup',joyEnd); tMove.addEventListener('pointercancel',joyEnd);
+tLook.addEventListener('pointerdown',e=>{ e.preventDefault(); lookStart(e); });
+tLook.addEventListener('pointermove',lookMove); tLook.addEventListener('pointerup',lookEnd); tLook.addEventListener('pointercancel',lookEnd);
+function tbtn(id,down,up,look){
+  const b=$(id);
+  b.addEventListener('pointerdown',e=>{ e.preventDefault(); e.stopPropagation(); if(state!=='play') return; b.classList.add('on'); if(look) lookStart(e); else { try{ b.setPointerCapture(e.pointerId); }catch(_){} } initAudio(); down(); });
+  const end=e=>{ b.classList.remove('on'); if(look) lookEnd(e); if(up) up(); };
+  b.addEventListener('pointerup',end); b.addEventListener('pointercancel',end);
+  if(look) b.addEventListener('pointermove',lookMove);
+}
+tbtn('tFire',()=>{ mouseDown=true; },()=>{ mouseDown=false; },true);
+tbtn('tJump',()=>{ jumpQ=true; });
+tbtn('tDash',()=>{ dashQ=true; });
+tbtn('tReload',()=>startReload());
+tbtn('tSwap',()=>cycleWeapon(1));
+tbtn('tPause',()=>pauseGame());
+document.addEventListener('touchmove',e=>{ if(state==='play') e.preventDefault(); },{passive:false});
+document.addEventListener('gesturestart',e=>e.preventDefault());
 const LEVEL_ICONS=['🌳','🌵','❄️','🍭','🌋'];
 function renderLevels(){
   const box=$('levelCards'); box.innerHTML='';
@@ -1691,7 +1780,7 @@ document.addEventListener('keydown',e=>{
 });
 document.addEventListener('keyup',e=>keys[e.code]=false);
 addEventListener('blur',()=>{ for(const k in keys) keys[k]=false; mouseDown=false; });
-document.addEventListener('mousedown',e=>{ if(state!=='play'||player.dead) return; if(e.button===0) mouseDown=true; if(e.button===2) dashQ=true; });
+document.addEventListener('mousedown',e=>{ if(TOUCH||state!=='play'||player.dead) return; if(e.button===0) mouseDown=true; if(e.button===2) dashQ=true; });
 document.addEventListener('mouseup',e=>{ if(e.button===0) mouseDown=false; });
 document.addEventListener('contextmenu',e=>e.preventDefault());
 let wheelT=0; document.addEventListener('wheel',e=>{ if(state!=='play') return; const now=performance.now(); if(now-wheelT<120) return; wheelT=now; cycleWeapon(e.deltaY>0?1:-1); },{passive:true});
@@ -1704,7 +1793,7 @@ addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.upd
 
 // ================= 主循环 =================
 const clock=new THREE.Clock(); let menuT=0;
-let perfAcc=0, perfN=0, quality=2;
+let perfAcc=0, perfN=0, quality=TOUCH?1:2;
 function checkPerf(real){
   perfAcc+=real; perfN++;
   if(perfAcc<3) return;
@@ -1729,6 +1818,7 @@ function loop(){
     menuT+=real; camera.position.set(Math.sin(menuT*.1)*24,13,Math.cos(menuT*.1)*24); camera.lookAt(0,1.5,0);
     player.pos.copy(camera.position); updateEnemies(real,menuT); updateWorld(real,menuT); updateFx(real);
   }
+  const tv=(TOUCH&&state==='play')?'block':'none'; if($('touchUI').style.display!==tv) $('touchUI').style.display=tv;
   renderer.render(scene,camera);
 }
 toMenu();

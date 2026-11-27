@@ -11,7 +11,9 @@ const easeOutBack = x => { const c1=1.70158,c3=c1+1; return 1+c3*Math.pow(x-1,3)
 
 // ================= 渲染 =================
 const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const TOUCH = matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints>0 && !matchMedia('(pointer: fine)').matches);
+if(TOUCH) document.body.classList.add('touch');
+renderer.setPixelRatio(Math.min(devicePixelRatio, TOUCH?1.5:2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -26,7 +28,7 @@ scene.add(camera);
 const hemi = new THREE.HemisphereLight(0xffffff, 0x88aa66, 0.9); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xffffff, 1.6);
 sun.position.set(30,50,20); sun.castShadow = true;
-sun.shadow.mapSize.set(2048,2048);
+sun.shadow.mapSize.set(TOUCH?1024:2048,TOUCH?1024:2048);
 Object.assign(sun.shadow.camera, {left:-60,right:60,top:60,bottom:-60,near:1,far:160});
 scene.add(sun);
 
